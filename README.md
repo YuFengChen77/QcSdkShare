@@ -49,9 +49,20 @@ import QcSdkShare
 precondition(NSClassFromString("QcSdkShare.ShareImp") != nil)
 ```
 
-`-ObjC` 缺失可能使只通过类名访问的实现被裁掉。不要直接创建内部 Provider 代替 SDK 的公开业务入口；通过编译和反射检查后，仍需配置渠道并联调对应功能。
+`-ObjC` 缺失可能使只通过类名访问的实现被裁掉。业务通过 SDK 公开入口调用，不直接依赖内部实现类；通过编译和反射检查后，仍需完成本模块配置及业务联调。
 
 ## 分享能力与调用
+
+在已有启动转发和 SDK 初始化流程完成后，可通过公开入口打开分享面板：
+
+```swift
+@MainActor
+func shareWithSDK(_ param: ShareParam, listener: ShareListener?) {
+    QcShareSdkApi.shared.shareByDialog(shareParam: param, listener: listener)
+}
+```
+
+`param` 由宿主按实际内容构造，`listener` 接收结果；不要用示例代替具体内容校验。
 
 本模块提供分享管理、分享面板及系统分享、Line、Telegram、X 等实现；具体类型与内容支持以公开 `SharePlatform`、`ShareType` 和实现的支持矩阵为准，不依赖对应第三方渠道 SDK。
 
@@ -96,7 +107,7 @@ Xcode 左侧未显示 XCFramework 不代表下载失败，文件通常位于工�
 ## 注意事项
 
 - 自有 SDK 为静态链接，不重复同时集成手动 Framework 和 SPM 产品，不手工将自有静态 Framework 设置为 Embed & Sign。第三方若含动态依赖，由最终 App 正常嵌入和签名。
-- 包解析与反射检查不等于真实账号授权、分享、上报或 Unity 业务已验证；按本模块配置执行真机 / 宿主联调。
+- 包解析与反射检查不代表业务验收完成；仍需验证分享面板展示、系统 / 目标 App 分享、取消和失败回调。
 - SDK 的资源和公开 `.swiftinterface` / Objective-C 头文件可以查看，但不包含业务实现源码。
 - 不将 Client Secret、服务端密钥、授权 token 或内部日志提交到公开仓库。
 - Core 通用集成和业务配置另见 [QcSdkCore README](https://github.com/YuFengChen77/QcSdkCore#readme)。
