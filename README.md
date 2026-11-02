@@ -1,6 +1,8 @@
 # QcSdkShare
 
-QC 海外 iOS SDK 的基础分享模块，以预编译静态 XCFramework 通过 Swift Package Manager（SPM）分发，不提供业务实现源码。
+> `2.0.0-beta.1` 为动态 XCFramework 测试版。主 App 与直接调用 SDK 的 Framework 关联同一中间件，App 负责嵌入签名。此前 1.x 静态版本保持不变，不使用本版动态接入布局。
+
+QC 海外 iOS SDK 的基础分享模块，以预编译 XCFramework 通过 Swift Package Manager（SPM）分发，不提供业务实现源码。
 
 ## 环境要求
 
@@ -19,6 +21,8 @@ QC 海外 iOS SDK 的基础分享模块，以预编译静态 XCFramework 通过 
 
 ## 在 Xcode 中集成
 
+以下针对新动态分发版本。直接使用此独立包时，同时选择 `QcSdkShare` 与 `QcSdkShareDependencies` 产品；使用 CreateIntegration 生成的中间件会自动包含两者。UnityFramework 等直接调用方也关联同一中间件，主 App 负责嵌入签名。旧静态版本继续按其发布时的 README 接入。
+
 1. 选择 **File → Add Package Dependencies…**，输入：
 
    ```text
@@ -26,11 +30,11 @@ QC 海外 iOS SDK 的基础分享模块，以预编译静态 XCFramework 通过 
    ```
 
 2. 在本仓库 Releases 中选择所需的已发布版本，Dependency Rule 使用 **Exact Version**。
-3. 选择 **QcSdkShare** 产品，将 Add to Target 设为实际使用 SDK 的 App Target；Unity 通常为 `UnityFramework`。
-4. 在该 Target 的 **Build Settings → Other Linker Flags** 保留原有值并添加：
+3. 选择 **QcSdkShare** 产品，将 Add to Target 设为主 App Target；通过中间件接入 Unity 时为 `Unity-iPhone`。
+4. 在该 Target 的 **Build Settings → Other Linker Flags** 保留继承值（动态 SDK 不要求宿主新增 -ObjC）：
 
    ```text
-   $(inherited) -ObjC
+   $(inherited)
    ```
 
 5. 确认最低部署版本为 iOS 17.0 或以上，编译并运行。
@@ -49,7 +53,7 @@ import QcSdkShare
 precondition(NSClassFromString("QcSdkShare.ShareImp") != nil)
 ```
 
-`-ObjC` 缺失可能使只通过类名访问的实现被裁掉。业务通过 SDK 公开入口调用，不直接依赖内部实现类；通过编译和反射检查后，仍需完成本模块配置及业务联调。
+动态版本在自身构建阶段保留反射实现，宿主无需为其新增 -ObjC。业务通过 SDK 公开入口调用，不直接依赖内部实现类；通过编译和反射检查后，仍需完成本模块配置及业务联调。
 
 ## 分享能力与调用
 
@@ -106,10 +110,12 @@ Xcode 左侧未显示 XCFramework 不代表下载失败，文件通常位于工�
 
 ## 注意事项
 
-- 自有 SDK 为静态链接，不重复同时集成手动 Framework 和 SPM 产品，不手工将自有静态 Framework 设置为 Embed & Sign。第三方若含动态依赖，由最终 App 正常嵌入和签名。
+- 自有 SDK 为动态链接，主 App 统一嵌入签名；直接调用方关联相同产品，共用实现。不要同时手动集成同一 Framework 与 SPM 产品。
 - 包解析与反射检查不代表业务验收完成；仍需验证分享面板展示、系统 / 目标 App 分享、取消和失败回调。
 - SDK 的资源和公开 `.swiftinterface` / Objective-C 头文件可以查看，但不包含业务实现源码。
 - 不将 Client Secret、服务端密钥、授权 token 或内部日志提交到公开仓库。
 - Core 通用集成和业务配置另见 [QcSdkCore README](https://github.com/YuFengChen77/QcSdkCore#readme)。
 
 本文件在开发仓库的 `QcSdkShare/README.md` 维护，生成分发包时自动复制；依赖声明仍以根 `Package.swift` 和本次发布清单为准。
+
+新动态分发目录还含 `QcSdkShare/DependencySources/Dependencies.swift`，仅声明无业务标记，用于由官方 SPM 构建动态依赖容器。自有资源由该容器生成资源 bundle，避免 App 与 UnityFramework 重复定义资源访问器。
